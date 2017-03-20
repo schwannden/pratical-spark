@@ -7,6 +7,6 @@
 
 ## Install and Deploy
 
-* [Deploy Spark](deploy-spark.md)
 * [Install Spark](chapter1.md)
+* [Deploy Spark](deploy-spark.md)
 
