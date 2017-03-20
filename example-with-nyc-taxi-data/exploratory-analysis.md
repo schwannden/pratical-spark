@@ -95,7 +95,7 @@ sigma=
 0.011882345001095702  0.0491915607547574
 ```
 
-Both showed large weight on only one cluster. 
+Both showed large weight on only one cluster.
 
 ### Normalization
 
@@ -151,17 +151,100 @@ sigma=
 Then we look at the peak taxi hours. The following function is a simple practice on the transform and map operation on RDD.
 
 ```Bash
-scala> val pickHour = data.pickHour.map.groupBy(v => v(0)).mapValues(_.size)
+scala> val pickHour = data.pickHour.groupBy(v => v(0)).mapValues(_.size)
 
 scala> pickHour.collect.sortWith((x, y) => x._2 > y._2)
 res14: Array[(Double, Int)] = Array((18.0,692093), (19.0,682974), (20.0,624418), (21.0,608035), (17.0,591940), (22.0,581287), (15.0,564002), (14.0,562636), (12.0,535279), (13.0,531803), (16.0,511344), (11.0,502554), (9.0,491927), (8.0,491429), (23.0,481811), (10.0,480614), (7.0,404567), (0.0,396034), (1.0,300325), (6.0,236287), (2.0,229220), (3.0,169130), (4.0,125601), (5.0,111548))
 
-scala> val dropHour = data.dropHour.map.groupBy(v => v(0)).mapValues(_.size)
+scala> val dropHour = data.dropHour.groupBy(v => v(0)).mapValues(_.size)
 
 scala> dropHour.collect.sortWith((x, y) => x._2 > y._2)
 res15: Array[(Double, Int)] = Array((19.0,703937), (18.0,686466), (20.0,635415), (21.0,608888), (22.0,590500), (15.0,567494), (17.0,560108), (14.0,548168), (12.0,535878), (13.0,527809), (16.0,522818), (23.0,504585), (9.0,498030), (11.0,493334), (10.0,480787), (8.0,470627), (0.0,416916), (7.0,364426), (1.0,319567), (2.0,243215), (6.0,207235), (3.0,177567), (4.0,137100), (5.0,105988))
-
 ```
 
 We see the peak pick up hour is at night 18:00 while the peak drop hour is a little bit later 17:00, which intuitively makes sense.
+
+### Difference Between Cluster
+
+Suppose we want to know if there is any difference between short and long distance trip, first we need to define "short" and "long." Remember at first we see that the variance of distances is too large, let's see why.
+
+```Bash
+scala> distance.reduce((x, y) => if (x(0)>y(0)) x else y)
+res4: org.apache.spark.mllib.linalg.Vector = [8000010.0]
+```
+
+What!? The maximum distance of a taxi drive is 8 million miles!? This gotta be corrupted data... Let's look at a few filter of the data and see which is reasonable
+
+```Bash
+scala> Statistics.colStats(distance.filter(_(0) < 1000)).mean
+res18: org.apache.spark.mllib.linalg.Vector = [2.8988766702689905]
+
+scala> Statistics.colStats(distance.filter(_(0) < 100)).mean
+res19: org.apache.spark.mllib.linalg.Vector = [2.897565939072903]
+
+scala> Statistics.colStats(distance.filter(_(0) < 50)).mean
+res20: org.apache.spark.mllib.linalg.Vector = [2.8955079577667737]
+
+scala> Statistics.colStats(distance.filter(_(0) < 20)).mean
+res21: org.apache.spark.mllib.linalg.Vector = [2.788128080257221]
+```
+
+We see the mean of the dataset is unaffected if we filter the milage to be &lt; 50 miles, so let's only look at these data for now.
+
+```Bash
+scala> val dataFiltered = data.sanitize.filter(v => getDistance(v) < 50)
+
+scala> dataFiltered.summary
+pickHour dropHour pasCount distance pickLoct         dropLoct           tip
+13.547,  13.559,  1.674,   2.902,   -73.974, 40.75,  -73.974,  40.751,  0.497
+40.844,  41.741,  1.766,   12.899,  0.006, 0.001,     0.006,  0.002,    0.001
+```
+
+Now Everything look good, let's further see how we should partition filtered data
+
+```Bash
+scala> distance.count
+res23: Long = 10720407                                                          
+
+scala> distance.filter(_(0) < 20).count
+res24: Long = 10662998                                                          
+
+scala> distance.filter(_(0) < 10).count
+res25: Long = 10136261                                                                                                                     
+
+scala> distance.filter(_(0) < 1.5).count
+res28: Long = 4703481
+
+scala> distance.filter(_(0) < 1).count
+res26: Long = 2588721
+```
+
+We see the data is extremely skewed, with most trip distances being less then the average distance. So for now let's use some intuitive cutoff points and see the difference
+
+```Bash
+scala> val shortTrip =  dataFiltered.filter(v => getDistance(v) < 1)
+scala> val longTrip =  dataFiltered.filter(v => getDistance(v) > 10)
+
+scala> shortTrip.summary                                                  
+pickHour dropHour pasCount distance pickLoct         dropLoct           tip
+13.53,   13.567,  1.655,   0.666,   -73.979, 40.754, -73.979,  40.754,  0.496
+34.794,  35.026,  1.758,   0.046,   0.015, 0.001,    0.015,  0.002,     0.002
+
+scala> longTrip.summary                                                      
+pickHour dropHour pasCount distance pickLoct         dropLoct           tip
+13.421,  13.492,  1.722,  15.198,  -73.887,  40.715, -73.93,  40.73,   0.482
+40.415,  42.941,  1.806,  17.243,   0.009,  0.005,   0.008,  0.004,    0.008
+```
+
+We see long trips appeared to have larger passenger count and departs earlier, both of which hypothesis is intuitive. To learn more about pick up hour
+
+```Bash
+scala> shortTrip.pickHour.groupBy(v => v(0)).mapValues(_.size).collect.sortWith((x, y) => x._2 > y._2)
+res42: Array[(Double, Int)] = Array((18.0,174637), (19.0,167914), (17.0,149969), (15.0,148972), (14.0,148370), (12.0,148081), (13.0,143716), (9.0,137585), (11.0,135878), (20.0,135541), (8.0,134112), (16.0,132627), (10.0,130264), (21.0,119631), (22.0,107266), (7.0,94875), (23.0,85598), (0.0,71223), (1.0,54883), (6.0,53013), (2.0,41327), (3.0,30096), (5.0,21663), (4.0,21480))
+
+scala> longTrip.pickHour.groupBy(v => v(0)).mapValues(_.size).collect.sortWith((x, y) => x._2 > y._2)
+res43: Array[(Double, Int)] = Array((14.0,36874), (15.0,36247), (16.0,32898), (17.0,31912), (22.0,30992), (21.0,30692), (20.0,30292), (13.0,30137), (18.0,28705), (23.0,28314), (19.0,27600), (12.0,26001), (10.0,23614), (11.0,22982), (7.0,21469), (9.0,21325), (6.0,21308), (8.0,20183), (0.0,20019), (5.0,15693), (1.0,12565), (4.0,10980), (2.0,8792), (3.0,8211))
+```
+
+The peak our for taking off varies greatly. It says if one is taking a long distance trip, they most likely departs in afternoon so that they arrive at destination earlier.
 
