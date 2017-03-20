@@ -1,3 +1,6 @@
-# First Chapter
+# Deploy on Ubuntu 16.04
 
-GitBook allows you to organize your book into chapters, each chapter is stored in a separate file like this one.
+The book only give instruction on installing spark on Ubuntu 16.04, for other version of your machine, please find the guideline on Google.
+
+
+
