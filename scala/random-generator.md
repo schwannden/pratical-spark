@@ -113,7 +113,6 @@ val pairs: Generator[(Int, Int)] = for(
 Random list
 
 ```Scala
-
 val lists: Generator[List[Int]] = for(
   empty <- booleans;
   list <- if (empty) emptyList else nonEmptyList
