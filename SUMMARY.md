@@ -9,4 +9,5 @@
 
 * [Install Spark](chapter1.md)
 * [Deploy Spark](deploy-spark.md)
+* [Running Interactive Shell](running-interactive-shell.md)
 
