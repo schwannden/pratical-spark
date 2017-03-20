@@ -17,7 +17,7 @@ val integers = new Generator[Int] {
 }
 ```
 
-So ` integers.generate` yields a random integer. And we can further define random boolean generator as
+So `integers.generate` yields a random integer. And we can further define random boolean generator as
 
 ```Scala
 val integers = new Generator[Int] {
@@ -54,6 +54,8 @@ To use for loop in composition, we need map and flatMap function in Random trait
 map(xs) = xs flatMap (x => unit(x))
 ```
 
+So let's define our random trait as
+
 ```Scala
 package object Random {
   trait Generator[+T] {
@@ -69,28 +71,31 @@ package object Random {
       override def generate = f(self.generate).generate
     }
   }
-
-  val integers = new Generator[Int] {
-    val rand = new java.util.Random
-    override def generate = rand.nextInt()
-  }
-
-
-  def single[T](x: T): Generator[T] = new Generator[T] {
-    override def generate = x
-  }
-
-  def choose(low: Int, high: Int): Generator[Int] = new Generator[Int] {
-    override def generate = integers.generate % (high - low) + low
-  }
-
-  def oneOf[T](xs: T*): Generator[T] =
-    for(i <- choose(0, xs.length)) yield xs(i)
-
 }
 ```
 
-Some usage example
+Together with some helper method
+
+```Scala
+val integers = new Generator[Int] {
+val rand = new java.util.Random
+override def generate = rand.nextInt()
+}
+
+
+def single[T](x: T): Generator[T] = new Generator[T] {
+override def generate = x
+}
+
+def choose(low: Int, high: Int): Generator[Int] = new Generator[Int] {
+override def generate = integers.generate % (high - low) + low
+}
+
+def oneOf[T](xs: T*): Generator[T] =
+for(i <- choose(0, xs.length)) yield xs(i)
+```
+
+### Usage example
 
 ```Scala
 import Random._
