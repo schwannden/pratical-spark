@@ -1,4 +1,4 @@
-# Practical Spark
+# Mathematicians are coming back
 
 In the early days of the data analysis, statisticians, mathematicians and physicist are the most wanted people in the field. But then comes the age of big data, where engineers start to become useful in the fields of machine learning and data analysis. The reason is this:
 
