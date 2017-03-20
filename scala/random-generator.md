@@ -97,6 +97,8 @@ for(i <- choose(0, xs.length)) yield xs(i)
 
 ### Usage example
 
+Random boolean and pairs can be defined as
+
 ```Scala
 import Random._
 
@@ -106,6 +108,11 @@ val pairs: Generator[(Int, Int)] = for(
   i <- integers;
   j <- integers
 ) yield (i, j)
+```
+
+Random list
+
+```Scala
 
 val lists: Generator[List[Int]] = for(
   empty <- booleans;
@@ -118,7 +125,11 @@ def nonEmptyList = for (
   head <- integers;
   list <- lists
 ) yield head :: list
+```
 
+Even random tree
+
+```Scala
 trait Tree
 case class Leaf(x: Int) extends Tree {
   override def toString: String = "(" + x + ")"
