@@ -11,7 +11,7 @@ val data = new TaxiData(getData(sc, file))
 
 Quickly look at its summary
 
-```Bash
+```Scala
 pickHour dropHour pasCount distance      pickLoct         dropLoct         tip
 13.546,  13.558,  1.67,    4.648,        -72.819, 40.114, -72.887, 40.153, 0.497
 40.855,  41.751,  1.755,   8886929.359,  84.069, 25.512,  79.224, 24.043,  0.002
@@ -24,21 +24,21 @@ First line is the mean of the feature column, second line is the variance. Notic
 
 Let's look at anomalies in coordinates first.
 
-```Bash
+```Scala
 scala> data.pickLocation.take(10)
 res1: Array[org.apache.spark.mllib.linalg.Vector] = Array([-73.99037170410156,40.73469543457031], [-73.98078155517578,40.72991180419922], [-73.98455047607422,40.6795654296875], [-73.99346923828125,40.718990325927734], [-73.96062469482422,40.78133010864258], [-73.98011779785156,40.74304962158203], [-73.99405670166016,40.71998977661133], [-73.97942352294922,40.74461364746094], [-73.94715118408203,40.791046142578125], [-73.99834442138672,40.72389602661133])
 ```
 
 Looks normal. but I am guessing some of the coordinates are zero due to missing values. Indeed
 
-```Bash
+```Scala
 scala> data.pickLocation.filter(v => v(0) == 0 || v(1) == 0).take(10)
 res3: Array[org.apache.spark.mllib.linalg.Vector] = Array([0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0])
 ```
 
 So let's sanitize the data and see how much corrupted data data exists
 
-```Bash
+```Scala
 scala> data.pickLocation.count
 res4: Long = 10906858
 scala> data.sanitize.pickLocation.count
@@ -47,7 +47,7 @@ res5: Long = 10720867
 
 About 1.8% of the data is corrupted, that's enough to have a huge impact on clustering algorithm. Looking at the summary of sanitized data again, the coordinates' variance are much more reasonable
 
-```Bash
+```Scala
 scala> data.sanitize.summary
 res6: preprocess.TaxiData#Summary =
 pickHour dropHour pasCount distance    pickLoct        dropLoct          tip
@@ -59,7 +59,7 @@ pickHour dropHour pasCount distance    pickLoct        dropLoct          tip
 
 Now the coordinates data is clean, run the mixture of Gaussian on pick up locations and drop off locations respectively and see the results \(in my setup, each result takes about 30 seconds to finish\).
 
-```Bash
+```Scala
 scala> val res1 = runGmm(data.sanitize.pickLocation)
 
 scala> printGmm(res1)
@@ -78,7 +78,7 @@ sigma=
 
 Each result takes about 30 seconds to finish. And printing the results, we get
 
-```Bash
+```Scala
 scala> val res2 = runGmm(data.sanitize.dropLocation)
 
 scala> printGmm(res2)
@@ -101,7 +101,7 @@ Both showed large weight on only one cluster.
 
 Increasing the number of cluster to 10 and see what happened.
 
-```Bash
+```Scala
 scala> val res1 = runGmm(data.sanitize.pickLocation, k = 10)
 Running Time: 11.3973 minutes                                                   
 res1: org.apache.spark.mllib.clustering.GaussianMixtureModel = org.apache.spark.mllib.clustering.GaussianMixtureModel@6ab00916
@@ -109,14 +109,14 @@ res1: org.apache.spark.mllib.clustering.GaussianMixtureModel = org.apache.spark.
 
 First we note it is taking way too long to! Why? Because coordinates of data points are too similar to each other. Since most coordinates are in New York, most of the data points differ only in the last three digits. And in iteration based algorithm like Mixture of Gaussian, the convergence criteria is based on the error between two iteration. And this high similarity in data will cause convergence to be very slow. Let's normalized it and run again
 
-```Bash
+```Scala
 scala> res1 = runGmm(data.sanitize.pickLocation, k = 10, normalized = true)
 Running Time: 6.572133333333333 minutes
 ```
 
 The speed increase by 100%! To print the result, we need to denormalize it
 
-```Bash
+```Scala
 scala> import org.apache.spark.mllib.stat.Statistics
 scala> val mean = Statistics.colStats(data.sanitize.pickLocation).mean.toArray
 scala> printGmm(res1, mean, factor)
@@ -150,7 +150,7 @@ sigma=
 
 Then we look at the peak taxi hours. The following function is a simple practice on the transform and map operation on RDD.
 
-```Bash
+```Scala
 scala> val pickHour = data.pickHour.groupBy(v => v(0)).mapValues(_.size)
 
 scala> pickHour.collect.sortWith((x, y) => x._2 > y._2)
@@ -168,14 +168,14 @@ We see the peak pick up hour is at night 18:00 while the peak drop hour is a lit
 
 Suppose we want to know if there is any difference between short and long distance trip, first we need to define "short" and "long." Remember at first we see that the variance of distances is too large, let's see why.
 
-```Bash
+```Scala
 scala> distance.reduce((x, y) => if (x(0)>y(0)) x else y)
 res4: org.apache.spark.mllib.linalg.Vector = [8000010.0]
 ```
 
 What!? The maximum distance of a taxi drive is 8 million miles!? This gotta be corrupted data... Let's look at a few filter of the data and see which is reasonable
 
-```Bash
+```Scala
 scala> Statistics.colStats(distance.filter(_(0) < 1000)).mean
 res18: org.apache.spark.mllib.linalg.Vector = [2.8988766702689905]
 
@@ -191,7 +191,7 @@ res21: org.apache.spark.mllib.linalg.Vector = [2.788128080257221]
 
 We see the mean of the dataset is unaffected if we filter the milage to be &lt; 50 miles, so let's only look at these data for now.
 
-```Bash
+```Scala
 scala> val dataFiltered = data.sanitize.filter(v => getDistance(v) < 50)
 
 scala> dataFiltered.summary
@@ -202,7 +202,7 @@ pickHour dropHour pasCount distance pickLoct         dropLoct           tip
 
 Now Everything look good, let's further see how we should partition filtered data
 
-```Bash
+```Scala
 scala> distance.count
 res23: Long = 10720407                                                          
 
@@ -221,7 +221,7 @@ res26: Long = 2588721
 
 We see the data is extremely skewed, with most trip distances being less then the average distance. So for now let's use some intuitive cutoff points and see the difference
 
-```Bash
+```Scala
 scala> val shortTrip =  dataFiltered.filter(v => getDistance(v) < 1)
 scala> val longTrip =  dataFiltered.filter(v => getDistance(v) > 10)
 
@@ -238,7 +238,7 @@ pickHour dropHour pasCount distance pickLoct         dropLoct           tip
 
 We see long trips appeared to have larger passenger count and departs earlier, both of which hypothesis is intuitive. To learn more about pick up hour
 
-```Bash
+```Scala
 scala> shortTrip.pickHour.groupBy(v => v(0)).mapValues(_.size).collect.sortWith((x, y) => x._2 > y._2)
 res42: Array[(Double, Int)] = Array((18.0,174637), (19.0,167914), (17.0,149969), (15.0,148972), (14.0,148370), (12.0,148081), (13.0,143716), (9.0,137585), (11.0,135878), (20.0,135541), (8.0,134112), (16.0,132627), (10.0,130264), (21.0,119631), (22.0,107266), (7.0,94875), (23.0,85598), (0.0,71223), (1.0,54883), (6.0,53013), (2.0,41327), (3.0,30096), (5.0,21663), (4.0,21480))
 
@@ -246,5 +246,5 @@ scala> longTrip.pickHour.groupBy(v => v(0)).mapValues(_.size).collect.sortWith((
 res43: Array[(Double, Int)] = Array((14.0,36874), (15.0,36247), (16.0,32898), (17.0,31912), (22.0,30992), (21.0,30692), (20.0,30292), (13.0,30137), (18.0,28705), (23.0,28314), (19.0,27600), (12.0,26001), (10.0,23614), (11.0,22982), (7.0,21469), (9.0,21325), (6.0,21308), (8.0,20183), (0.0,20019), (5.0,15693), (1.0,12565), (4.0,10980), (2.0,8792), (3.0,8211))
 ```
 
-The peak our for taking off varies greatly. It says if one is taking a long distance trip, they most likely departs in afternoon so that they arrive at destination earlier.
+The peak hour for taking off varies greatly. It says if one is taking a long distance trip, they most likely departs in afternoon so that they arrive at destination earlier.
 

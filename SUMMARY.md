@@ -16,3 +16,5 @@
 * [Data, Source, Compile](example-with-nyc-taxi-data/data-and-source.md)
 * [Exploratory analysis](example-with-nyc-taxi-data/exploratory-analysis.md)
 
+## Scala
+
