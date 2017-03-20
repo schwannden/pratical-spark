@@ -11,3 +11,8 @@
 * [Deploy Spark](deploy-spark.md)
 * [Running Interactive Shell](running-interactive-shell.md)
 
+## Example with NYC taxi data
+
+* [Data, Source, Compile](example-with-nyc-taxi-data/data-and-source.md)
+* [Exploratory analysis](example-with-nyc-taxi-data/exploratory-analysis.md)
+
