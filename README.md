@@ -13,7 +13,7 @@ The cycle of
 
 has proven to be more effective then doing a complete and thorough analysis in the beginning. Mathematician's lack of programming skill made them only useful in stage 1 and 4.
 
-That being said, the world is changing with the trend in functional programming paradigm, and the gradually mature industrialization of this functional programming platform
+That being said, the world is changing with the trend in functional programming paradigm, and the gradually mature industrialization of functional programming platforms.
 
 **With functional programming, mathematicians are now able to write codes that more intuitively reflects their thought process. And this kind of coding style happens to be more easily parallelized in practice. And the idea in algebra, computation theory became more and more practical when we write codes this way.**
 
