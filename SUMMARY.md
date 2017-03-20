@@ -18,3 +18,6 @@
 
 ## Scala
 
+* [For loop](scala/for-loop.md)
+* [Random Generator](scala/random-generator.md)
+
